@@ -199,7 +199,11 @@ func CreateAptInfos() ([]*AptInfo, error) {
 			}
 
 			priceStrings := strings.Split(e.ChildText("div[class*=price]"), " ")
-			priceString := priceStrings[len(priceStrings)-1]
+			priceIndex := 0
+			if len(priceStrings) == 5 {
+				priceIndex++
+			}
+			priceString := priceStrings[priceIndex]
 			priceString = strings.ReplaceAll(priceString[1:], ",", "")
 			if price, err := strconv.Atoi(priceString); err != nil {
 				log.Printf("fail to parse price for apartment %s, price string %s", aptInfo.AptNum, priceString)
