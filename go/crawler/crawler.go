@@ -137,7 +137,7 @@ func (a *Alert) FireAlert(aptInfos []*AptInfo) error {
 
 	if len(newAlertInfos) != 0 || len(deprecatedAlertInfos) != 0 {
 		UploadAlertMap(alertMap)
-		SendEmail(composeEmail(newAlertInfos, existingAlertInfos, deprecatedAlertInfos))
+		SendEmail("New Avalon Apartments Available", composeEmail(newAlertInfos, existingAlertInfos, deprecatedAlertInfos))
 	} else {
 		log.Println("No new result")
 	}
@@ -171,7 +171,7 @@ func composeEmail(newAlertInfos []*AptInfo, existingAlertInfos []*AptInfo, depre
 	return content
 }
 
-func CreateAptInfos() ([]*AptInfo, error) {
+func CreateAptInfos() (_ []*AptInfo, retErr error) {
 	c := colly.NewCollector()
 	now := time.Now()
 	dateRegex := regexp.MustCompile(`Available (.*) — (.*)`)
@@ -184,8 +184,6 @@ func CreateAptInfos() ([]*AptInfo, error) {
 			if strings.Contains(e.Text, "Unavailable") {
 				return
 			}
-			//fmt.Println(e.ChildAttr("a", "*"))
-			//aptInfo.Id = strings.Split(e.ChildAttr("a", "href"), "/")[1]
 			aptInfo.Signature = e.ChildText("div[class*=signature]")
 			aptInfo.AptNum = e.ChildText("div[class*=title]")
 
@@ -193,7 +191,7 @@ func CreateAptInfos() ([]*AptInfo, error) {
 			aptInfo.Bedroom = strings.TrimSpace(details[0])
 			aptInfo.Bath = strings.TrimSpace(details[1])
 			if sqft, err := strconv.Atoi(strings.Split(strings.TrimSpace(details[2]), " ")[0]); err != nil {
-				log.Printf("fail to parse sqft for apartment %s, sqft string %s", aptInfo.AptNum, details[2])
+				retErr = oops.Errorf("fail to parse sqft for apartment %s, sqft string %s", aptInfo.AptNum, details[2])
 			} else {
 				aptInfo.Sqft = sqft
 			}
@@ -206,7 +204,7 @@ func CreateAptInfos() ([]*AptInfo, error) {
 			priceString := priceStrings[priceIndex]
 			priceString = strings.ReplaceAll(priceString[1:], ",", "")
 			if price, err := strconv.Atoi(priceString); err != nil {
-				log.Printf("fail to parse price for apartment %s, price string %s", aptInfo.AptNum, priceString)
+				retErr = oops.Errorf("fail to parse price for apartment %s, price string %s", aptInfo.AptNum, priceString)
 			} else {
 				aptInfo.Price = price
 			}
@@ -214,12 +212,12 @@ func CreateAptInfos() ([]*AptInfo, error) {
 			dateMatches := dateRegex.FindStringSubmatch(e.ChildText("div[class*=availability]"))
 			//pretty.Print(e.ChildText("div[class*=availability]"))
 			if startTime, err := time.Parse(timeLayout, dateMatches[1]+fmt.Sprintf(", %d", now.Year())); err != nil {
-				log.Printf("fail to parse available start date for apartment %s, available start date %s, err: %s", aptInfo.AptNum, dateMatches[1], err.Error())
+				retErr = oops.Errorf("fail to parse available start date for apartment %s, available start date %s, err: %s", aptInfo.AptNum, dateMatches[1], err.Error())
 			} else {
 				aptInfo.AvailableStart = startTime
 			}
 			if endTime, err := time.Parse(timeLayout, dateMatches[2]+fmt.Sprintf(", %d", now.Year())); err != nil {
-				log.Printf("fail to parse available end date for apartment %s, available end date %s, err: %s", aptInfo.AptNum, dateMatches[2], err.Error())
+				retErr = oops.Errorf("fail to parse available end date for apartment %s, available end date %s, err: %s", aptInfo.AptNum, dateMatches[2], err.Error())
 			} else {
 				aptInfo.AvailableEnd = endTime
 			}
@@ -228,5 +226,5 @@ func CreateAptInfos() ([]*AptInfo, error) {
 	})
 
 	c.Visit("https://www.avaloncommunities.com/california/san-francisco-apartments/avalon-at-mission-bay/apartments")
-	return apiInfos, nil
+	return apiInfos, retErr
 }

@@ -15,24 +15,16 @@ const (
 	// This address must be verified with Amazon SES.
 	Sender = "uestcxzk@gmail.com"
 
-	// Specify a configuration set. To use a configuration
-	// set, comment the next line and line 92.
-	//ConfigurationSet = "ConfigSet"
-
-	// The subject line for the email.
-	Subject = "New Avalon Apartments Available"
-
-	// The HTML body for the email.
-	HtmlBody = "<h1>Test</h1>"
-
-	//The email body for recipients with non-HTML email clients.
-	TextBody = "This email was sent with Amazon SES using the AWS SDK for Go."
-
 	// The character encoding for the email.
 	CharSet = "UTF-8"
 )
 
-func SendEmail(content string) {
+func SendErr(subject string, sendErr error) {
+	content := "<p>" + sendErr.Error() + "</p>"
+	SendEmail(subject, content)
+}
+
+func SendEmail(subject string, content string) {
 	// Create a new session in the us-west-2 region.
 	// Replace us-west-2 with the AWS Region you're using for Amazon SES.
 	sess, err := session.NewSession(&aws.Config{
@@ -57,14 +49,10 @@ func SendEmail(content string) {
 					Charset: aws.String(CharSet),
 					Data:    aws.String(content),
 				},
-				Text: &ses.Content{
-					Charset: aws.String(CharSet),
-					Data:    aws.String(TextBody),
-				},
 			},
 			Subject: &ses.Content{
 				Charset: aws.String(CharSet),
-				Data:    aws.String(Subject),
+				Data:    aws.String(subject),
 			},
 		},
 		Source: aws.String(Sender),
